@@ -1,0 +1,62 @@
+name: Build cross-platform release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: terminal-atm-windows-x64
+            executable: build/Release/terminal-atm.exe
+          - os: ubuntu-latest
+            artifact: terminal-atm-linux-x64
+            executable: build/terminal-atm
+          - os: macos-latest
+            artifact: terminal-atm-macos-arm64
+            executable: build/terminal-atm
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.executable }}
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Package downloads
+        run: |
+          chmod +x artifacts/terminal-atm-linux-x64/terminal-atm artifacts/terminal-atm-macos-arm64/terminal-atm
+          tar -czf terminal-atm-linux-x64.tar.gz -C artifacts/terminal-atm-linux-x64 terminal-atm
+          tar -czf terminal-atm-macos-arm64.tar.gz -C artifacts/terminal-atm-macos-arm64 terminal-atm
+          cd artifacts/terminal-atm-windows-x64 && zip ../../terminal-atm-windows-x64.zip terminal-atm.exe
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${{ github.ref_name }}"
+          terminal-atm-windows-x64.zip
+          terminal-atm-linux-x64.tar.gz
+          terminal-atm-macos-arm64.tar.gz
+          --repo "${{ github.repository }}"
+          --title "Terminal ATM Simulator ${{ github.ref_name }}"
+          --notes "Educational console simulator builds for Windows x64, Linux x64, and macOS Apple Silicon."

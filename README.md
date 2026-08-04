@@ -28,6 +28,8 @@ A small, portable ATM workflow simulator written in C. It demonstrates defensive
 
 Requirements: a C11 compiler and CMake 3.15 or newer.
 
+Prebuilt Windows, Linux, and macOS packages are available from the repository's **Releases** page.
+
 ```bash
 cmake -S . -B build
 cmake --build build
